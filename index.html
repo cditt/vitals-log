@@ -178,11 +178,12 @@ function save() {
   if (!state) { return false; }
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
-    return true;
   } catch (e) {
     setErr('Could not save to this phone. Free up space or check browser storage settings.');
     return false;
   }
+  haPing();
+  return true;
 }
 
 /* ---------- medication logic ---------- */
@@ -209,6 +210,7 @@ function dueItems(date) {
         name: m.name,
         strength: m.strength,
         slot: slots[j],
+        freq: m.freq,
         label: m.name + (slots[j] ? ' (' + slots[j] + ')' : '')
       });
     }
@@ -228,6 +230,50 @@ function missedText(date) {
   if (!m.length) { return 'All meds taken'; }
   if (date >= todayStr() && m.length === dueItems(date).length) { return 'Meds not checked off yet'; }
   return prefix + m.join(', ');
+}
+
+/* ---------- optional Home Assistant reminder link ----------
+   Sends ONLY today's done / not done flags (no numbers, no medication names) to a private
+   webhook address that is stored on this phone, never in this file and never in backups.
+   Fire and forget: if the phone is offline nothing is sent and the reminders simply keep going. */
+var HAKEY = 'vitalsLog.haUrl';
+function haGet() { try { return localStorage.getItem(HAKEY) || ''; } catch (e) { return ''; } }
+function haSet(v) {
+  try { if (v) { localStorage.setItem(HAKEY, v); } else { localStorage.removeItem(HAKEY); } return true; } catch (e) { return false; }
+}
+function haUrlOk(v) { return /^https:\/\/[^\s]+$/.test(v) || /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/[^\s]*)?$/.test(v); }
+function haStatus() {
+  var d = todayStr(), items = dueItems(d), day = state.days[d], taken = day ? day.taken : {};
+  var c = { am: [0, 0], night: [0, 0], weekly: [0, 0] }, i, k, bpAm = false, bpPm = false, r;
+  for (i = 0; i < state.readings.length; i++) {
+    r = state.readings[i];
+    if (r.date === d) { if (r.period === 'PM') { bpPm = true; } else { bpAm = true; } }
+  }
+  for (i = 0; i < items.length; i++) {
+    k = items[i].freq === 'weekly' ? 'weekly' : ((items[i].freq === 'twice' && items[i].slot === 'Night') ? 'night' : 'am');
+    c[k][0]++;
+    if (taken[items[i].key]) { c[k][1]++; }
+  }
+  function f(x) { return x[0] === 0 ? 'na' : (x[0] === x[1] ? 'yes' : 'no'); }
+  return { date: d, bp_am: bpAm ? 'yes' : 'no', bp_pm: bpPm ? 'yes' : 'no', meds_am: f(c.am), meds_night: f(c.night), meds_weekly: f(c.weekly) };
+}
+function haPing() {
+  var url = haGet(), s, body, x;
+  if (!url || !state) { return false; }
+  s = haStatus();
+  body = 'date=' + s.date + '&bp_am=' + s.bp_am + '&bp_pm=' + s.bp_pm + '&meds_am=' + s.meds_am + '&meds_night=' + s.meds_night + '&meds_weekly=' + s.meds_weekly;
+  try {
+    if (window.fetch) {
+      fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })['catch'](function () { /* offline: ignore */ });
+    } else {
+      x = new XMLHttpRequest();
+      x.open('POST', url, true);
+      x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      x.onerror = function () { /* offline: ignore */ };
+      x.send(body);
+    }
+  } catch (e) { return false; }
+  return true;
 }
 
 /* ---------- reading / stats helpers ---------- */
@@ -441,6 +487,14 @@ function viewBackup() {
   h += '<button data-act="exportCsv">Export CSV (for the doctor)</button>';
   h += '<button class="sec" data-act="pickFile">Import from a JSON file</button>';
   h += '<div class="hint">Import replaces everything on this device with the file. A copy of the current data is kept first.</div>';
+  h += '<h2>Home Assistant reminders (optional)</h2>';
+  h += '<div class="hint">Reminder link: ' + (haGet() ? 'set on this phone' : 'not set') + '. It only tells Home Assistant what is done today, never any numbers or medication names.</div>';
+  h += '<label for="ha-url">Paste the reminder link</label><input id="ha-url" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" value="">';
+  h += '<button data-act="haSave">Save link</button>';
+  if (haGet()) {
+    h += '<button class="sec" data-act="haTest">Send today\'s status now</button>';
+    h += '<button class="danger" data-act="haRemove">Remove link</button>';
+  }
   return h;
 }
 function countKeys(o) { var n = 0, k; for (k in o) { if (o.hasOwnProperty(k)) { n++; } } return n; }
@@ -686,6 +740,20 @@ document.addEventListener('click', function (ev) {
   else if (act === 'exportJson') { download('vitals-log-' + todayStr() + '.json', JSON.stringify(state, null, 2), 'application/json'); }
   else if (act === 'exportCsv') { download('vitals-log-' + todayStr() + '.csv', buildCsv(), 'text/csv'); }
   else if (act === 'pickFile') { $('import-file').value = ''; $('import-file').click(); }
+  else if (act === 'haSave') {
+    var hv = $('ha-url').value.replace(/^\s+|\s+$/g, '');
+    if (!hv) { setErr('Paste the link first.'); return; }
+    if (!haUrlOk(hv)) { setErr('The link must start with https://'); return; }
+    if (haSet(hv)) { haPing(); go('backup', 'Reminder link saved, and today\'s status was sent.'); } else { setErr('Could not save the link on this phone.'); }
+  }
+  else if (act === 'haTest') {
+    if (haPing()) { go('backup', 'Sent. This phone cannot see Home Assistant\'s reply, so check Home Assistant to confirm it arrived.'); } else { setErr('No link is set.'); }
+  }
+  else if (act === 'haRemove') {
+    askConfirm('Remove the Home Assistant reminder link from this phone? Reminders will no longer know what you have logged.', 'Yes, remove', function () {
+      haSet(''); go('backup', 'Reminder link removed.');
+    });
+  }
   else if (act === 'print') { window.print(); }
 });
 
@@ -704,6 +772,7 @@ document.addEventListener('change', function (ev) {
 /* ---------- start ---------- */
 load();
 render();
+haPing(); /* re-send today's status on every open, so a ping missed while offline is caught up */
 try { if (navigator.storage && navigator.storage.persist) { navigator.storage.persist(); } } catch (e) { /* ignore */ }
 if ('serviceWorker' in navigator) {
   try { navigator.serviceWorker.register('sw.js'); } catch (e2) { /* ignore */ }
