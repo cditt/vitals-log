@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b2a6f">
+<title>Vitals Log</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #e9f0fb; color: #000; font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 22px; }
+body { padding-bottom: 112px; }
+#hdr { background: #0b2a6f; color: #fff; display: flex; align-items: center; padding: 10px 14px; border-bottom: 5px solid #ffb703; }
+#hdr svg { width: 44px; height: 44px; flex: none; margin-right: 10px; }
+#hdr .t { font-size: 30px; line-height: 1.1; }
+#hdr .d { font-size: 19px; }
+#app { max-width: 680px; margin: 0 auto; padding: 12px 14px; }
+h1 { font-size: 34px; margin: 8px 0 14px; color: #0b2a6f; padding-bottom: 6px; border-bottom: 5px solid #ffb703; }
+h2 { font-size: 26px; margin: 20px 0 8px; color: #0b2a6f; }
+label { display: block; font-size: 22px; margin: 14px 0 6px; }
+input, select, textarea { width: 100%; font-family: inherit; font-weight: bold; font-size: 26px; padding: 12px; border: 3px solid #0b2a6f; border-radius: 10px; background: #fff; color: #000; }
+input:focus, select:focus, textarea:focus { outline: 5px solid #ffb703; outline-offset: 1px; }
+input.big { font-size: 46px; text-align: center; padding: 14px; }
+textarea { min-height: 90px; }
+button { font-family: inherit; font-weight: bold; font-size: 26px; padding: 14px; border-radius: 14px; border: 3px solid #0b2a6f; background: #0b2a6f; color: #fff; width: 100%; min-height: 68px; margin: 10px 0; cursor: pointer; box-shadow: 0 4px 0 rgba(0,0,0,0.35); }
+button:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.35); }
+button.go { background: #0a6b2d; border-color: #064d1e; font-size: 30px; min-height: 76px; }
+button.sec { background: #fff; color: #0b2a6f; }
+button.danger { background: #8a0000; border-color: #5c0000; color: #fff; }
+button.row { background: #fff; color: #000; text-align: left; font-size: 22px; min-height: 58px; margin: 8px 0; border: 2px solid #0b2a6f; border-left: 12px solid #0b2a6f; box-shadow: none; }
+button.row.day { border-left-color: #00695c; background: #f1faf8; }
+button.menu { background: #fff; color: #0b2a6f; text-align: left; display: flex; align-items: center; min-height: 84px; }
+button.menu svg { width: 40px; height: 40px; margin-right: 14px; flex: none; }
+.card { background: #fff; border: 3px solid #0b2a6f; border-radius: 14px; padding: 0 12px 8px; margin: 16px 0; overflow: hidden; box-shadow: 0 3px 0 rgba(0,0,0,0.2); }
+.dh { font-size: 26px; background: #0b2a6f; color: #fff; margin: 0 -12px 8px; padding: 9px 12px; }
+.fld { background: #fff; border: 3px solid #0b2a6f; border-left: 14px solid #0b2a6f; border-radius: 14px; padding: 2px 12px 12px; margin: 14px 0; }
+.fld.f2 { border-color: #00695c; border-left-color: #00695c; }
+.fld.f3 { border-color: #6a1b9a; border-left-color: #6a1b9a; }
+.fld label { margin-top: 10px; }
+.fld.f1 label { color: #0b2a6f; }
+.fld.f2 label { color: #00695c; }
+.fld.f3 label { color: #6a1b9a; }
+.fld input { border-color: #000; }
+.msg { background: #d7f5d7; border: 3px solid #005a00; color: #000; padding: 12px; border-radius: 8px; margin: 10px 0; font-size: 24px; }
+.err { display: none; background: #ffd9d9; border: 3px solid #8a0000; color: #000; padding: 12px; border-radius: 8px; margin: 10px 0; font-size: 24px; }
+.warn { background: #ffe9a8; border: 3px solid #7a5200; padding: 12px; border-radius: 8px; margin: 10px 0; }
+.chk { display: flex; align-items: center; background: #fff; border: 3px solid #0b2a6f; border-radius: 14px; padding: 12px; margin: 10px 0; font-size: 24px; }
+.chk.on { background: #d4f1dc; border-color: #0a6b2d; }
+.chk input { width: 44px; height: 44px; margin: 0 14px 0 0; flex: none; accent-color: #0a6b2d; }
+.chk .sub { font-size: 20px; }
+.two { display: flex; gap: 10px; }
+.two > div { flex: 1; }
+.tile { text-align: center; padding-bottom: 10px; }
+.tile .dh { text-align: center; }
+.avg { font-size: 56px; text-align: center; padding: 6px 0; }
+.avgl { text-align: center; font-size: 22px; }
+.t1 { border-color: #0b2a6f; } .t1 .dh { background: #0b2a6f; } .t1 .avg { color: #0b2a6f; }
+.t2 { border-color: #6a1b9a; } .t2 .dh { background: #6a1b9a; } .t2 .avg { color: #6a1b9a; }
+.t3 { border-color: #00695c; } .t3 .dh { background: #00695c; } .t3 .avg { color: #00695c; }
+.t4 { border-color: #333; } .t4 .dh { background: #333; } .t4 .avg { color: #000; }
+.hint { font-size: 22px; margin: 6px 0 10px; }
+nav { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 5px solid #0b2a6f; display: flex; z-index: 5; }
+nav button { margin: 0; border-radius: 0; border: none; border-right: 2px solid #b8c4dc; background: #fff; color: #0b2a6f; font-size: 17px; min-height: 80px; padding: 8px 2px 6px; box-shadow: none; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+nav button svg { width: 32px; height: 32px; margin-bottom: 2px; }
+nav button:last-child { border-right: none; }
+nav button.on { background: #0b2a6f; color: #fff; }
+#modal { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(0,0,0,0.75); z-index: 10; display: none; align-items: center; justify-content: center; padding: 18px; }
+#modal .box { background: #fff; border: 4px solid #000; border-radius: 12px; padding: 16px; max-width: 520px; width: 100%; font-size: 24px; }
+.tw { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; margin: 6px 0 14px; font-size: 18px; }
+th, td { border: 2px solid #000; padding: 5px 7px; text-align: left; vertical-align: top; }
+th { background: #e6e6e6; }
+.rh { font-size: 28px; }
+@media print {
+  nav, .noprint, #modal, #hdr { display: none !important; }
+  html, body { font-size: 12pt; background: #fff !important; }
+  body { padding: 0; }
+  #app { max-width: none; padding: 0; }
+  table { font-size: 10.5pt; }
+  tr { page-break-inside: avoid; }
+  th { background: #e6e6e6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div id="hdr"><svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="10" fill="#fff"/><polyline points="6,26 15,26 20,12 28,38 33,26 42,26" fill="none" stroke="#0b2a6f" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg><div><div class="t">Vitals Log</div><div class="d" id="hdate"></div></div></div>
+<div id="app"></div>
+<nav id="nav"></nav>
+<div id="modal"><div class="box" id="modalbox"></div></div>
+<input type="file" id="import-file" accept=".json,application/json" style="display:none">
+
+<script>
+(function () {
+'use strict';
+
+var KEY = 'vitalsLog.v1';
+var PREV = 'vitalsLog.prev';
+var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+var DOWFULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+var state = null;
+var loadError = '';
+var view = 'log';
+var flashMsg = '';
+var editReadingId = null;
+var editMedId = null;
+var todayDate = null;
+var reportRange = '30';
+var pendingConfirm = null;
+
+/* ---------- small helpers (local time only) ---------- */
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function fmtDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function todayStr() { return fmtDate(new Date()); }
+function nowTime() { var d = new Date(); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+function parseDate(s) { var p = s.split('-'); return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)); }
+function addDays(s, n) { var d = parseDate(s); d.setDate(d.getDate() + n); return fmtDate(d); }
+function longDate(s) { var d = parseDate(s); return DOW[d.getDay()] + ' ' + MON[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); }
+function shortDate(s) { var d = parseDate(s); return MON[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); }
+function periodFor(t) {
+  if (!t) { return 'AM'; }
+  return parseInt(t.split(':')[0], 10) < 12 ? 'AM' : 'PM';
+}
+function hm(min) { return Math.floor(min / 60) + ':' + pad2(min % 60); }
+function readInt(v) {
+  v = String(v).replace(/^\s+|\s+$/g, '');
+  if (!/^\d{1,3}$/.test(v)) { return null; }
+  var n = parseInt(v, 10);
+  return n >= 1 ? n : null;
+}
+function newId(prefix) { return prefix + Date.now() + Math.floor(Math.random() * 1000); }
+
+/* ---------- data ---------- */
+function seed() {
+  /* No personal data lives in this public file. Start empty; load a backup with Backup > Import. */
+  return { version: 1, profile: { name: '' }, readings: [], days: {}, meds: [] };
+}
+
+function validState(o) {
+  return !!o && typeof o === 'object' && o.readings instanceof Array && o.meds instanceof Array &&
+    !!o.days && typeof o.days === 'object' && !(o.days instanceof Array);
+}
+
+function load() {
+  var raw = null;
+  try {
+    raw = localStorage.getItem(KEY);
+  } catch (e) {
+    loadError = 'This browser is blocking storage, so the app cannot save anything. Nothing was changed.';
+    state = null;
+    return;
+  }
+  if (raw === null) {
+    /* first run only: nothing saved yet, so loading the starting data cannot overwrite anything */
+    state = seed();
+    save();
+    return;
+  }
+  try {
+    var obj = JSON.parse(raw);
+    if (!validState(obj)) { throw new Error('bad shape'); }
+    if (!obj.profile) { obj.profile = { name: '' }; }
+    state = obj;
+  } catch (e2) {
+    loadError = 'The saved data could not be read. The app has NOT changed or erased it. Use the button below to save a copy of it, then ask for help.';
+    state = null;
+  }
+}
+
+function save() {
+  if (!state) { return false; }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+    return true;
+  } catch (e) {
+    setErr('Could not save to this phone. Free up space or check browser storage settings.');
+    return false;
+  }
+}
+
+/* ---------- medication logic ---------- */
+function schedText(m) {
+  if (m.freq === 'weekly') { return 'Weekly, ' + DOWFULL[m.weekday]; }
+  if (m.freq === 'twice') { return 'Twice a day, AM and night'; }
+  return 'Daily';
+}
+function medDue(m, date) {
+  if (date < m.start) { return false; }
+  if (m.removedOn && date >= m.removedOn) { return false; }
+  if (m.freq === 'weekly') { return parseDate(date).getDay() === m.weekday; }
+  return true;
+}
+function dueItems(date) {
+  var out = [], i, j, m, slots;
+  for (i = 0; i < state.meds.length; i++) {
+    m = state.meds[i];
+    if (!medDue(m, date)) { continue; }
+    slots = m.freq === 'twice' ? ['AM', 'Night'] : [''];
+    for (j = 0; j < slots.length; j++) {
+      out.push({
+        key: m.id + '|' + slots[j],
+        name: m.name,
+        strength: m.strength,
+        slot: slots[j],
+        label: m.name + (slots[j] ? ' (' + slots[j] + ')' : '')
+      });
+    }
+  }
+  return out;
+}
+function missedList(date) {
+  var due = dueItems(date), day = state.days[date], taken = day ? day.taken : {}, out = [], i;
+  for (i = 0; i < due.length; i++) {
+    if (!taken[due[i].key]) { out.push(due[i].label); }
+  }
+  return out;
+}
+function missedText(date) {
+  var m = missedList(date);
+  var prefix = date < todayStr() ? 'Missed: ' : 'Not yet checked: ';
+  if (!m.length) { return 'All meds taken'; }
+  if (date >= todayStr() && m.length === dueItems(date).length) { return 'Meds not checked off yet'; }
+  return prefix + m.join(', ');
+}
+
+/* ---------- reading / stats helpers ---------- */
+function findReading(id) {
+  var i;
+  for (i = 0; i < state.readings.length; i++) { if (state.readings[i].id === id) { return state.readings[i]; } }
+  return null;
+}
+function readingsOn(date) {
+  var out = [], i;
+  for (i = 0; i < state.readings.length; i++) { if (state.readings[i].date === date) { out.push(state.readings[i]); } }
+  out.sort(function (a, b) { return (a.time || '') < (b.time || '') ? -1 : ((a.time || '') > (b.time || '') ? 1 : 0); });
+  return out;
+}
+function allDates() {
+  var set = {}, out = [], i, k;
+  for (i = 0; i < state.readings.length; i++) { set[state.readings[i].date] = 1; }
+  for (k in state.days) { if (state.days.hasOwnProperty(k)) { set[k] = 1; } }
+  for (k in set) { if (set.hasOwnProperty(k)) { out.push(k); } }
+  out.sort();
+  return out;
+}
+function avgRound(sum, n) { return n ? Math.round(sum / n) : null; }
+function stats(from, to) {
+  var r = { n: 0, sys: null, dia: null, pulse: null, sleepN: 0, sleep: null };
+  var ss = 0, sd = 0, sp = 0, i, k, sl = 0;
+  for (i = 0; i < state.readings.length; i++) {
+    var x = state.readings[i];
+    if (x.date >= from && x.date <= to) { r.n++; ss += x.sys; sd += x.dia; sp += x.pulse; }
+  }
+  for (k in state.days) {
+    if (state.days.hasOwnProperty(k) && k >= from && k <= to && state.days[k].sleepMinutes !== null && state.days[k].sleepMinutes !== undefined) {
+      r.sleepN++; sl += state.days[k].sleepMinutes;
+    }
+  }
+  r.sys = avgRound(ss, r.n); r.dia = avgRound(sd, r.n); r.pulse = avgRound(sp, r.n); r.sleep = avgRound(sl, r.sleepN);
+  return r;
+}
+function timeText(r) { return (r.time ? r.time : 'time n/a') + ' ' + r.period; }
+function dash(v) { return v === null || v === undefined ? '—' : v; }
+
+/* ---------- messages / modal ---------- */
+function setErr(msg) {
+  var e = $('err');
+  if (e) { e.textContent = msg; e.style.display = 'block'; e.scrollIntoView(); }
+  else { flashMsg = msg; }
+}
+function go(v, msg) {
+  view = v;
+  flashMsg = msg || '';
+  render();
+}
+function askConfirm(text, yesLabel, fn) {
+  pendingConfirm = fn;
+  $('modalbox').innerHTML = '<div>' + esc(text) + '</div>' +
+    '<button class="danger" data-act="confirmYes">' + esc(yesLabel) + '</button>' +
+    '<button class="sec" data-act="confirmNo">Cancel</button>';
+  $('modal').style.display = 'flex';
+}
+function closeModal() { $('modal').style.display = 'none'; pendingConfirm = null; }
+
+/* ---------- views ---------- */
+function viewError() {
+  var h = '<h1>Vitals Log</h1><div class="err" style="display:block">' + esc(loadError) + '</div>';
+  var raw = null;
+  try { raw = localStorage.getItem(KEY); } catch (e) { raw = null; }
+  if (raw !== null) { h += '<button data-act="rawBackup">Save a copy of the stored data</button>'; }
+  return h;
+}
+
+function viewLog() {
+  var r = editReadingId ? findReading(editReadingId) : null;
+  if (editReadingId && !r) { editReadingId = null; }
+  var t = r ? r.time : nowTime();
+  var d = r ? r.date : todayStr();
+  var p = r ? r.period : periodFor(t);
+  var h = '<h1>' + (r ? 'Edit reading' : 'Log reading') + '</h1>';
+  if (!r && !state.readings.length && !state.meds.length && !countKeys(state.days)) {
+    h += '<div class="warn">First time here? To load your saved data and medication list: More, then Backup, then Import.</div>';
+  }
+  h += '<div class="err" id="err"></div>';
+  h += '<div class="fld f1"><label for="r-sys">Top number (systolic)</label><input class="big" id="r-sys" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" value="' + (r ? r.sys : '') + '"></div>';
+  h += '<div class="fld f2"><label for="r-dia">Bottom number (diastolic)</label><input class="big" id="r-dia" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" value="' + (r ? r.dia : '') + '"></div>';
+  h += '<div class="fld f3"><label for="r-pul">Pulse (beats per minute)</label><input class="big" id="r-pul" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" value="' + (r ? r.pulse : '') + '"></div>';
+  h += '<label for="r-notes">Notes (optional)</label><textarea id="r-notes">' + esc(r ? r.notes : '') + '</textarea>';
+  h += '<button class="go" data-act="saveReading">' + (r ? 'Save changes' : 'Save reading') + '</button>';
+  if (r) {
+    h += '<button class="sec" data-act="cancelEdit">Cancel</button>';
+    h += '<button class="danger" data-act="deleteReading">Delete this reading</button>';
+  }
+  h += '<div class="card"><div class="dh">Date and time</div>';
+  h += '<label for="r-date">Date</label><input id="r-date" type="date" value="' + esc(d) + '">';
+  h += '<div class="two"><div><label for="r-time">Time</label><input id="r-time" type="time" value="' + esc(t) + '"></div>';
+  h += '<div><label for="r-period">AM / PM</label><select id="r-period"><option value="AM"' + (p === 'AM' ? ' selected' : '') + '>AM</option><option value="PM"' + (p === 'PM' ? ' selected' : '') + '>PM</option></select></div></div></div>';
+  return h;
+}
+
+function viewToday() {
+  if (!todayDate) { todayDate = todayStr(); }
+  var day = state.days[todayDate];
+  var sm = day ? day.sleepMinutes : null;
+  var hh = sm === null || sm === undefined ? '' : Math.floor(sm / 60);
+  var mm = sm === null || sm === undefined ? '' : (sm % 60);
+  var ev = day && day.eventsPerHour !== null && day.eventsPerHour !== undefined ? day.eventsPerHour : '';
+  var due = dueItems(todayDate), i, taken = day ? day.taken : {};
+  var h = '<h1>Today</h1><div class="err" id="err"></div>';
+  h += '<label for="d-date">Date</label><input id="d-date" type="date" value="' + esc(todayDate) + '">';
+  h += '<h2>Sleep</h2><div class="two"><div><label for="d-h">Hours</label><input class="big" id="d-h" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="' + hh + '"></div>';
+  h += '<div><label for="d-m">Minutes</label><input class="big" id="d-m" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="' + mm + '"></div></div>';
+  h += '<label for="d-e">Sleep events per hour</label><input class="big" id="d-e" type="text" inputmode="decimal" maxlength="5" value="' + ev + '">';
+  h += '<h2>Medications due</h2>';
+  if (!due.length) { h += '<div class="hint">Nothing due on this date.</div>'; }
+  for (i = 0; i < due.length; i++) {
+    h += '<label class="chk' + (taken[due[i].key] ? ' on' : '') + '"><input type="checkbox" data-key="' + esc(due[i].key) + '"' + (taken[due[i].key] ? ' checked' : '') + '><span>' + esc(due[i].label) + '<br><span class="sub">' + esc(due[i].strength) + '</span></span></label>';
+  }
+  h += '<label for="d-notes">Notes (optional)</label><textarea id="d-notes">' + esc(day ? day.notes : '') + '</textarea>';
+  h += '<button class="go" data-act="saveDay">Save</button>';
+  if (day) { h += '<button class="danger" data-act="deleteDay">Clear this day\'s sleep and meds</button>'; }
+  return h;
+}
+
+function viewHistory() {
+  var dates = allDates().reverse(), h = '<h1>History</h1>', i, j, d, rs, day, line;
+  if (!dates.length) { return h + '<div class="hint">No entries yet.</div>'; }
+  h += '<div class="hint">Tap a line to edit or delete it.</div>';
+  for (i = 0; i < dates.length; i++) {
+    d = dates[i];
+    rs = readingsOn(d);
+    day = state.days[d];
+    h += '<div class="card"><div class="dh">' + esc(longDate(d)) + '</div>';
+    for (j = 0; j < rs.length; j++) {
+      h += '<button class="row" data-act="editReading" data-id="' + esc(rs[j].id) + '">' + esc(timeText(rs[j])) + ' &nbsp; ' + rs[j].sys + '/' + rs[j].dia + ' &nbsp; pulse ' + rs[j].pulse + (rs[j].notes ? '<br>' + esc(rs[j].notes) : '') + '</button>';
+    }
+    line = 'Sleep: ' + (day && day.sleepMinutes !== null && day.sleepMinutes !== undefined ? hm(day.sleepMinutes) : '—');
+    line += ' &nbsp; Events/hr: ' + (day && day.eventsPerHour !== null && day.eventsPerHour !== undefined ? day.eventsPerHour : '—');
+    h += '<button class="row day" data-act="openDay" data-date="' + esc(d) + '">' + line + '<br>' + esc(missedText(d)) + (day && day.notes ? '<br>' + esc(day.notes) : '') + '</button>';
+    h += '</div>';
+  }
+  return h;
+}
+
+function viewSummary() {
+  var to = todayStr(), from = addDays(to, -6), s = stats(from, to);
+  var h = '<h1>Summary</h1><div class="hint">Last 7 days: ' + esc(shortDate(from)) + ' to ' + esc(shortDate(to)) + '</div>';
+  h += '<div class="card tile t1"><div class="dh">Blood pressure average</div><div class="avg">' + dash(s.sys) + ' / ' + dash(s.dia) + '</div></div>';
+  h += '<div class="card tile t2"><div class="dh">Pulse average</div><div class="avg">' + dash(s.pulse) + '</div></div>';
+  h += '<div class="card tile t3"><div class="dh">Sleep average</div><div class="avg">' + (s.sleep === null ? '—' : hm(s.sleep)) + '</div><div class="avgl">from ' + s.sleepN + ' night' + (s.sleepN === 1 ? '' : 's') + '</div></div>';
+  h += '<div class="card tile t4"><div class="dh">Readings</div><div class="avg">' + s.n + '</div></div>';
+  return h;
+}
+
+var ICON = {
+  log: '<path d="M12 4v16M4 12h16"/>',
+  today: '<path d="M4 7l2.5 2.5L10 5.5M13 7h8M4 15l2.5 2.5L10 13.5M13 15h8"/>',
+  history: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/>',
+  summary: '<path d="M5 20V12M12 20V5M19 20v-10"/>',
+  more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+  meds: '<rect x="3" y="9" width="18" height="7" rx="3.5" transform="rotate(-35 12 12.5)"/><path d="M9 9.5l5.5 5" transform="rotate(0)"/>',
+  report: '<path d="M7 4h10v5H7zM7 14h10v6H7zM4 9h16v6H4z"/>',
+  backup: '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/>'
+};
+function icon(n) {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>';
+}
+
+function viewMore() {
+  return '<h1>More</h1>' +
+    '<button class="menu" data-act="go-meds">' + icon('meds') + '<span>Meds<br><span style="font-size:19px">Add, edit or remove</span></span></button>' +
+    '<button class="menu" data-act="go-report">' + icon('report') + '<span>Doctor report<br><span style="font-size:19px">Print or save as PDF</span></span></button>' +
+    '<button class="menu" data-act="go-backup">' + icon('backup') + '<span>Backup<br><span style="font-size:19px">Export or import your data</span></span></button>';
+}
+
+function viewMeds() {
+  var h = '<h1>Meds</h1>', i, m;
+  h += '<button data-act="addMed">Add a medication</button>';
+  for (i = 0; i < state.meds.length; i++) {
+    m = state.meds[i];
+    if (m.removedOn && m.removedOn <= todayStr()) { continue; }
+    h += '<button class="row" data-act="editMed" data-id="' + esc(m.id) + '">' + esc(m.name) + '<br>' + esc(m.strength) + '<br>' + esc(schedText(m)) + ' · ' + esc(m.type) + '</button>';
+  }
+  return h;
+}
+
+function viewMedEdit() {
+  var m = null, i;
+  if (editMedId) { for (i = 0; i < state.meds.length; i++) { if (state.meds[i].id === editMedId) { m = state.meds[i]; } } }
+  var f = m ? m.freq : 'daily', w = m ? m.weekday : 5, ty = m ? m.type : 'Prescription';
+  var h = '<h1>' + (m ? 'Edit medication' : 'Add medication') + '</h1><div class="err" id="err"></div>';
+  h += '<label for="md-name">Name</label><input id="md-name" type="text" value="' + esc(m ? m.name : '') + '">';
+  h += '<label for="md-strength">Strength</label><input id="md-strength" type="text" value="' + esc(m ? m.strength : '') + '">';
+  h += '<label for="md-freq">Schedule</label><select id="md-freq">';
+  h += '<option value="daily"' + (f === 'daily' ? ' selected' : '') + '>Daily</option>';
+  h += '<option value="twice"' + (f === 'twice' ? ' selected' : '') + '>Twice a day, AM and night</option>';
+  h += '<option value="weekly"' + (f === 'weekly' ? ' selected' : '') + '>Weekly</option></select>';
+  h += '<div id="md-wdwrap" style="' + (f === 'weekly' ? '' : 'display:none') + '"><label for="md-wd">Day of the week</label><select id="md-wd">';
+  for (i = 0; i < 7; i++) { h += '<option value="' + i + '"' + (w === i ? ' selected' : '') + '>' + DOWFULL[i] + '</option>'; }
+  h += '</select></div>';
+  h += '<label for="md-type">Type</label><select id="md-type">';
+  var types = ['Prescription', 'Supplement', 'Over the counter'];
+  for (i = 0; i < types.length; i++) { h += '<option value="' + types[i] + '"' + (ty === types[i] ? ' selected' : '') + '>' + types[i] + '</option>'; }
+  h += '</select>';
+  h += '<button class="go" data-act="saveMed">Save</button><button class="sec" data-act="go-meds">Cancel</button>';
+  if (m) { h += '<button class="danger" data-act="removeMed">Remove this medication</button>'; }
+  return h;
+}
+
+function viewBackup() {
+  var h = '<h1>Backup</h1><div class="err" id="err"></div>';
+  h += '<div class="hint">' + state.readings.length + ' readings and ' + countKeys(state.days) + ' daily entries are saved on this phone.</div>';
+  h += '<button data-act="exportJson">Export JSON (full backup)</button>';
+  h += '<button data-act="exportCsv">Export CSV (for the doctor)</button>';
+  h += '<button class="sec" data-act="pickFile">Import from a JSON file</button>';
+  h += '<div class="hint">Import replaces everything on this device with the file. A copy of the current data is kept first.</div>';
+  return h;
+}
+function countKeys(o) { var n = 0, k; for (k in o) { if (o.hasOwnProperty(k)) { n++; } } return n; }
+
+function rangeFrom() {
+  if (reportRange === 'all') { return ''; }
+  return addDays(todayStr(), -(parseInt(reportRange, 10) - 1));
+}
+
+function viewReport() {
+  var to = todayStr(), from = rangeFrom(), s = stats(from, to), i, j, rs = [], dates = allDates(), d, day, r, m;
+  for (i = 0; i < state.readings.length; i++) { if (state.readings[i].date >= from && state.readings[i].date <= to) { rs.push(state.readings[i]); } }
+  rs.sort(function (a, b) {
+    var ka = a.date + ' ' + (a.time || ''), kb = b.date + ' ' + (b.time || '');
+    return ka < kb ? -1 : (ka > kb ? 1 : 0);
+  });
+  var opts = [['7', 'Last 7 days'], ['30', 'Last 30 days'], ['90', 'Last 90 days'], ['all', 'Everything']];
+  var h = '<div class="noprint"><h1>Doctor report</h1>';
+  h += '<label for="rp-range">Range</label><select id="rp-range">';
+  for (i = 0; i < opts.length; i++) { h += '<option value="' + opts[i][0] + '"' + (reportRange === opts[i][0] ? ' selected' : '') + '>' + opts[i][1] + '</option>'; }
+  h += '</select><label for="rp-name">Name on the report (optional)</label><input id="rp-name" type="text" value="' + esc(state.profile.name) + '">';
+  h += '<button data-act="print">Print / Save as PDF</button></div>';
+  h += '<div class="rh">Blood pressure, pulse, sleep and medication log' + (state.profile.name ? ' — ' + esc(state.profile.name) : '') + '</div>';
+  h += '<div>Period: ' + (from ? esc(shortDate(from)) : 'all entries') + ' to ' + esc(shortDate(to)) + ' &nbsp; Printed: ' + esc(shortDate(to)) + '</div>';
+  h += '<h2>Averages</h2><table><tr><th>Readings</th><th>Top / bottom</th><th>Pulse</th><th>Sleep (nights)</th></tr>';
+  h += '<tr><td>' + s.n + '</td><td>' + dash(s.sys) + ' / ' + dash(s.dia) + '</td><td>' + dash(s.pulse) + '</td><td>' + (s.sleep === null ? '—' : hm(s.sleep)) + ' (' + s.sleepN + ')</td></tr></table>';
+  h += '<h2>Readings</h2><div class="tw"><table><tr><th>Date</th><th>Time</th><th>Top</th><th>Bottom</th><th>Pulse</th><th>Notes</th></tr>';
+  if (!rs.length) { h += '<tr><td colspan="6">No readings in this period.</td></tr>'; }
+  for (i = 0; i < rs.length; i++) {
+    r = rs[i];
+    h += '<tr><td>' + esc(shortDate(r.date)) + '</td><td>' + esc(timeText(r)) + '</td><td>' + r.sys + '</td><td>' + r.dia + '</td><td>' + r.pulse + '</td><td>' + esc(r.notes) + '</td></tr>';
+  }
+  h += '</table></div>';
+  h += '<h2>Sleep and medications by day</h2><div class="tw"><table><tr><th>Date</th><th>Sleep</th><th>Events/hr</th><th>Missed meds</th><th>Notes</th></tr>';
+  var any = false;
+  for (j = 0; j < dates.length; j++) {
+    d = dates[j];
+    if (d < from || d > to) { continue; }
+    any = true;
+    day = state.days[d];
+    h += '<tr><td>' + esc(shortDate(d)) + '</td><td>' + (day && day.sleepMinutes !== null && day.sleepMinutes !== undefined ? hm(day.sleepMinutes) : '—') + '</td><td>' + (day && day.eventsPerHour !== null && day.eventsPerHour !== undefined ? day.eventsPerHour : '—') + '</td><td>' + esc(missedText(d)) + '</td><td>' + esc(day ? day.notes : '') + '</td></tr>';
+  }
+  if (!any) { h += '<tr><td colspan="5">No daily entries in this period.</td></tr>'; }
+  h += '</table></div>';
+  h += '<h2>Medication list</h2><table><tr><th>Medication</th><th>Strength</th><th>Schedule</th><th>Type</th></tr>';
+  for (i = 0; i < state.meds.length; i++) {
+    m = state.meds[i];
+    if (m.removedOn && m.removedOn <= to) { continue; }
+    h += '<tr><td>' + esc(m.name) + '</td><td>' + esc(m.strength) + '</td><td>' + esc(schedText(m)) + '</td><td>' + esc(m.type) + '</td></tr>';
+  }
+  h += '</table>';
+  return h;
+}
+
+function render() {
+  var h, nav = '', items = [['log', 'Log'], ['today', 'Today'], ['history', 'History'], ['summary', 'Summary'], ['more', 'More']], i, on;
+  if (!state) { h = viewError(); }
+  else if (view === 'log') { h = viewLog(); }
+  else if (view === 'today') { h = viewToday(); }
+  else if (view === 'history') { h = viewHistory(); }
+  else if (view === 'summary') { h = viewSummary(); }
+  else if (view === 'meds') { h = viewMeds(); }
+  else if (view === 'medEdit') { h = viewMedEdit(); }
+  else if (view === 'backup') { h = viewBackup(); }
+  else if (view === 'report') { h = viewReport(); }
+  else { h = viewMore(); }
+  $('app').innerHTML = (flashMsg ? '<div class="msg">' + esc(flashMsg) + '</div>' : '') + h;
+  var navView = (view === 'meds' || view === 'medEdit' || view === 'backup' || view === 'report') ? 'more' : view;
+  for (i = 0; i < items.length; i++) {
+    on = items[i][0] === navView ? ' class="on"' : '';
+    nav += '<button' + on + ' data-act="nav" data-v="' + items[i][0] + '">' + icon(items[i][0]) + items[i][1] + '</button>';
+  }
+  $('nav').innerHTML = nav;
+  $('hdate').textContent = longDate(todayStr());
+  window.scrollTo(0, 0);
+}
+
+/* ---------- actions ---------- */
+function doSaveReading() {
+  var sys = readInt($('r-sys').value), dia = readInt($('r-dia').value), pul = readInt($('r-pul').value);
+  var date = $('r-date').value, time = $('r-time').value, period = $('r-period').value, notes = $('r-notes').value;
+  if (sys === null || dia === null || pul === null) { setErr('Enter all three numbers (whole numbers, 1 to 999).'); return; }
+  if (!date) { setErr('Pick a date.'); return; }
+  var r = editReadingId ? findReading(editReadingId) : null;
+  if (r) {
+    r.date = date; r.time = time; r.period = period; r.sys = sys; r.dia = dia; r.pulse = pul; r.notes = notes;
+    if (save()) { editReadingId = null; go('history', 'Changes saved.'); }
+  } else {
+    state.readings.push({ id: newId('r'), date: date, time: time, period: period, sys: sys, dia: dia, pulse: pul, notes: notes });
+    if (save()) { go('log', 'Saved ' + sys + '/' + dia + ', pulse ' + pul + '.'); }
+  }
+}
+
+function doSaveDay() {
+  var hv = $('d-h').value.replace(/\s/g, ''), mv = $('d-m').value.replace(/\s/g, ''), ev = $('d-e').value.replace(/\s/g, '').replace(',', '.');
+  var sleep = null, events = null, taken = {}, boxes = document.querySelectorAll('input[data-key]'), i;
+  if (hv !== '' || mv !== '') {
+    if (!/^\d{1,2}$/.test(hv === '' ? '0' : hv) || !/^\d{1,2}$/.test(mv === '' ? '0' : mv)) { setErr('Sleep hours and minutes must be whole numbers.'); return; }
+    var hn = hv === '' ? 0 : parseInt(hv, 10), mn = mv === '' ? 0 : parseInt(mv, 10);
+    if (mn > 59) { setErr('Minutes must be 0 to 59.'); return; }
+    sleep = hn * 60 + mn;
+  }
+  if (ev !== '') {
+    if (!/^\d+(\.\d+)?$/.test(ev)) { setErr('Sleep events per hour must be a number like 2.6.'); return; }
+    events = parseFloat(ev);
+  }
+  for (i = 0; i < boxes.length; i++) { if (boxes[i].checked) { taken[boxes[i].getAttribute('data-key')] = true; } }
+  state.days[todayDate] = { sleepMinutes: sleep, eventsPerHour: events, taken: taken, notes: $('d-notes').value };
+  if (save()) { go('today', 'Saved ' + longDate(todayDate) + '.'); }
+}
+
+function doSaveMed() {
+  var name = $('md-name').value.replace(/^\s+|\s+$/g, '');
+  if (!name) { setErr('Enter a name.'); return; }
+  var m = null, i;
+  if (editMedId) { for (i = 0; i < state.meds.length; i++) { if (state.meds[i].id === editMedId) { m = state.meds[i]; } } }
+  var fields = { name: name, strength: $('md-strength').value, freq: $('md-freq').value, weekday: parseInt($('md-wd').value, 10), type: $('md-type').value };
+  if (m) {
+    m.name = fields.name; m.strength = fields.strength; m.freq = fields.freq; m.weekday = fields.weekday; m.type = fields.type;
+  } else {
+    fields.id = newId('m'); fields.start = todayStr(); fields.removedOn = '';
+    state.meds.push(fields);
+  }
+  if (save()) { editMedId = null; go('meds', 'Medication saved.'); }
+}
+
+function csvCell(v) {
+  var s = String(v === null || v === undefined ? '' : v);
+  if (/[",\n\r]/.test(s)) { s = '"' + s.replace(/"/g, '""') + '"'; }
+  return s;
+}
+function csvLine(a) { var o = [], i; for (i = 0; i < a.length; i++) { o.push(csvCell(a[i])); } return o.join(','); }
+
+function buildCsv() {
+  var lines = [], dates = allDates(), i, d, day, rs = state.readings.slice();
+  lines.push(csvLine(['READINGS']));
+  lines.push(csvLine(['Date', 'Time', 'AM/PM', 'Systolic (top)', 'Diastolic (bottom)', 'Pulse', 'Notes']));
+  rs.sort(function (a, b) { var ka = a.date + ' ' + (a.time || ''), kb = b.date + ' ' + (b.time || ''); return ka < kb ? -1 : (ka > kb ? 1 : 0); });
+  for (i = 0; i < rs.length; i++) { lines.push(csvLine([rs[i].date, rs[i].time, rs[i].period, rs[i].sys, rs[i].dia, rs[i].pulse, rs[i].notes])); }
+  lines.push('');
+  lines.push(csvLine(['DAILY']));
+  lines.push(csvLine(['Date', 'Sleep (h:mm)', 'Sleep events per hour', 'Missed meds', 'Notes']));
+  for (i = 0; i < dates.length; i++) {
+    d = dates[i]; day = state.days[d];
+    lines.push(csvLine([d, day && day.sleepMinutes !== null && day.sleepMinutes !== undefined ? hm(day.sleepMinutes) : '', day && day.eventsPerHour !== null && day.eventsPerHour !== undefined ? day.eventsPerHour : '', missedText(d), day ? day.notes : '']));
+  }
+  lines.push('');
+  lines.push(csvLine(['MEDICATIONS']));
+  lines.push(csvLine(['Medication', 'Strength', 'Schedule', 'Type']));
+  for (i = 0; i < state.meds.length; i++) {
+    if (state.meds[i].removedOn && state.meds[i].removedOn <= todayStr()) { continue; }
+    lines.push(csvLine([state.meds[i].name, state.meds[i].strength, schedText(state.meds[i]), state.meds[i].type]));
+  }
+  return '﻿' + lines.join('\r\n') + '\r\n';
+}
+
+function download(name, text, type) {
+  var blob = new Blob([text], { type: type });
+  var a = document.createElement('a');
+  var url = (window.URL || window.webkitURL).createObjectURL(blob);
+  a.href = url; a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { document.body.removeChild(a); (window.URL || window.webkitURL).revokeObjectURL(url); }, 1500);
+}
+
+function handleImportFile(file) {
+  var rd = new FileReader();
+  rd.onload = function () {
+    var obj;
+    try { obj = JSON.parse(rd.result); } catch (e) { go('backup'); setErr('That file is not valid JSON. Nothing was changed.'); return; }
+    if (!validState(obj)) { go('backup'); setErr('That file is not a Vitals Log backup. Nothing was changed.'); return; }
+    if (!obj.profile) { obj.profile = { name: '' }; }
+    var nr = obj.readings.length, nd = countKeys(obj.days);
+    if (nr === 0 && nd === 0 && (state.readings.length > 0 || countKeys(state.days) > 0)) {
+      go('backup'); setErr('That backup is empty, so it was NOT imported. Your data is unchanged.'); return;
+    }
+    askConfirm('Replace everything on this phone with the file? File has ' + nr + ' readings and ' + nd + ' daily entries. This phone has ' + state.readings.length + ' readings and ' + countKeys(state.days) + ' daily entries. A copy of the current data is kept first.', 'Yes, import', function () {
+      try { localStorage.setItem(PREV, JSON.stringify(state)); } catch (e2) { go('backup'); setErr('Could not keep a copy of the current data, so nothing was imported.'); return; }
+      state = obj;
+      if (save()) { go('backup', 'Imported ' + nr + ' readings and ' + nd + ' daily entries.'); }
+    });
+  };
+  rd.onerror = function () { go('backup'); setErr('Could not read that file. Nothing was changed.'); };
+  rd.readAsText(file);
+}
+
+/* ---------- events ---------- */
+function actOf(el) {
+  while (el && el !== document) {
+    if (el.getAttribute && el.getAttribute('data-act')) { return el; }
+    el = el.parentNode;
+  }
+  return null;
+}
+
+document.addEventListener('click', function (ev) {
+  var el = actOf(ev.target);
+  if (!el) { return; }
+  var act = el.getAttribute('data-act');
+  if (act === 'confirmYes') { var fn = pendingConfirm; closeModal(); if (fn) { fn(); } return; }
+  if (act === 'confirmNo') { closeModal(); return; }
+  if (act === 'rawBackup') {
+    var raw = ''; try { raw = localStorage.getItem(KEY) || ''; } catch (e) { raw = ''; }
+    download('vitals-log-raw-' + todayStr() + '.txt', raw, 'text/plain'); return;
+  }
+  if (!state) { return; }
+  if (act === 'nav') {
+    editReadingId = null; editMedId = null; todayDate = null;
+    go(el.getAttribute('data-v'));
+  }
+  else if (act === 'go-meds') { go('meds'); }
+  else if (act === 'go-report') { go('report'); }
+  else if (act === 'go-backup') { go('backup'); }
+  else if (act === 'saveReading') { doSaveReading(); }
+  else if (act === 'cancelEdit') { editReadingId = null; go('history'); }
+  else if (act === 'editReading') { editReadingId = el.getAttribute('data-id'); go('log'); }
+  else if (act === 'deleteReading') {
+    askConfirm('Delete this reading? This cannot be undone.', 'Yes, delete', function () {
+      var i;
+      for (i = 0; i < state.readings.length; i++) { if (state.readings[i].id === editReadingId) { state.readings.splice(i, 1); break; } }
+      if (save()) { editReadingId = null; go('history', 'Reading deleted.'); }
+    });
+  }
+  else if (act === 'openDay') { todayDate = el.getAttribute('data-date'); go('today'); }
+  else if (act === 'saveDay') { doSaveDay(); }
+  else if (act === 'deleteDay') {
+    askConfirm('Clear sleep and meds for ' + longDate(todayDate) + '? Readings stay. This cannot be undone.', 'Yes, clear', function () {
+      delete state.days[todayDate];
+      if (save()) { go('today', 'Cleared.'); }
+    });
+  }
+  else if (act === 'addMed') { editMedId = null; go('medEdit'); }
+  else if (act === 'editMed') { editMedId = el.getAttribute('data-id'); go('medEdit'); }
+  else if (act === 'saveMed') { doSaveMed(); }
+  else if (act === 'removeMed') {
+    askConfirm('Remove this medication from the daily checklist? Past history is kept.', 'Yes, remove', function () {
+      var i;
+      for (i = 0; i < state.meds.length; i++) { if (state.meds[i].id === editMedId) { state.meds[i].removedOn = todayStr(); } }
+      if (save()) { editMedId = null; go('meds', 'Medication removed.'); }
+    });
+  }
+  else if (act === 'exportJson') { download('vitals-log-' + todayStr() + '.json', JSON.stringify(state, null, 2), 'application/json'); }
+  else if (act === 'exportCsv') { download('vitals-log-' + todayStr() + '.csv', buildCsv(), 'text/csv'); }
+  else if (act === 'pickFile') { $('import-file').value = ''; $('import-file').click(); }
+  else if (act === 'print') { window.print(); }
+});
+
+document.addEventListener('change', function (ev) {
+  var t = ev.target, id = t.id;
+  if (id === 'import-file') { if (t.files && t.files[0] && state) { handleImportFile(t.files[0]); } return; }
+  if (!state) { return; }
+  if (t.getAttribute('data-key')) { t.parentNode.className = 'chk' + (t.checked ? ' on' : ''); }
+  else if (id === 'r-time') { $('r-period').value = periodFor(t.value); }
+  else if (id === 'd-date') { if (t.value) { todayDate = t.value; render(); } }
+  else if (id === 'md-freq') { $('md-wdwrap').style.display = t.value === 'weekly' ? '' : 'none'; }
+  else if (id === 'rp-range') { reportRange = t.value; render(); }
+  else if (id === 'rp-name') { state.profile.name = t.value; save(); render(); }
+});
+
+/* ---------- start ---------- */
+load();
+render();
+try { if (navigator.storage && navigator.storage.persist) { navigator.storage.persist(); } } catch (e) { /* ignore */ }
+if ('serviceWorker' in navigator) {
+  try { navigator.serviceWorker.register('sw.js'); } catch (e2) { /* ignore */ }
+}
+})();
+</script>
+</body>
+</html>
