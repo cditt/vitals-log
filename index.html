@@ -266,7 +266,7 @@ function stats(from, to) {
   r.sys = avgRound(ss, r.n); r.dia = avgRound(sd, r.n); r.pulse = avgRound(sp, r.n); r.sleep = avgRound(sl, r.sleepN);
   return r;
 }
-function timeText(r) { return (r.time ? r.time : 'time n/a') + ' ' + r.period; }
+function timeText(r) { return r.time ? r.time + ' ' + r.period : r.period; }
 function dash(v) { return v === null || v === undefined ? '—' : v; }
 
 /* ---------- messages / modal ---------- */
