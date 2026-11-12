@@ -60,6 +60,7 @@ button.menu svg { width: 40px; height: 40px; margin-right: 14px; flex: none; }
 .t2 { border-color: #6a1b9a; } .t2 .dh { background: #6a1b9a; } .t2 .avg { color: #6a1b9a; }
 .t3 { border-color: #00695c; } .t3 .dh { background: #00695c; } .t3 .avg { color: #00695c; }
 .t4 { border-color: #333; } .t4 .dh { background: #333; } .t4 .avg { color: #000; }
+.t5 { border-color: #8a3b00; } .t5 .dh { background: #8a3b00; } .t5 .avg { color: #8a3b00; }
 .hint { font-size: 22px; margin: 6px 0 10px; }
 nav { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 5px solid #0b2a6f; display: flex; z-index: 5; }
 nav button { margin: 0; border-radius: 0; border: none; border-right: 2px solid #b8c4dc; background: #fff; color: #0b2a6f; font-size: 17px; min-height: 80px; padding: 8px 2px 6px; box-shadow: none; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -107,6 +108,7 @@ var view = 'log';
 var flashMsg = '';
 var editReadingId = null;
 var editMedId = null;
+var editWeightId = null;
 var todayDate = null;
 var reportRange = '30';
 var pendingConfirm = null;
@@ -140,7 +142,7 @@ function newId(prefix) { return prefix + Date.now() + Math.floor(Math.random() *
 /* ---------- data ---------- */
 function seed() {
   /* No personal data lives in this public file. Start empty; load a backup with Backup > Import. */
-  return { version: 1, profile: { name: '' }, readings: [], days: {}, meds: [] };
+  return { version: 1, profile: { name: '' }, readings: [], weights: [], days: {}, meds: [] };
 }
 
 function validState(o) {
@@ -167,6 +169,7 @@ function load() {
     var obj = JSON.parse(raw);
     if (!validState(obj)) { throw new Error('bad shape'); }
     if (!obj.profile) { obj.profile = { name: '' }; }
+    if (!(obj.weights instanceof Array)) { obj.weights = []; } /* older saves have no weights yet */
     state = obj;
   } catch (e2) {
     loadError = 'The saved data could not be read. The app has NOT changed or erased it. Use the button below to save a copy of it, then ask for help.';
@@ -314,6 +317,27 @@ function stats(from, to) {
 }
 function timeText(r) { return r.time ? r.time + ' ' + r.period : r.period; }
 function dash(v) { return v === null || v === undefined ? '—' : v; }
+function lbText(v) { return v === null || v === undefined ? '—' : v.toFixed(1); }
+function findWeight(id) {
+  var i;
+  for (i = 0; i < state.weights.length; i++) { if (state.weights[i].id === id) { return state.weights[i]; } }
+  return null;
+}
+function weightsSorted(from, to, newestFirst) {
+  var out = [], i;
+  for (i = 0; i < state.weights.length; i++) { if (state.weights[i].date >= from && state.weights[i].date <= to) { out.push(state.weights[i]); } }
+  out.sort(function (a, b) {
+    var ka = a.date + ' ' + (a.time || ''), kb = b.date + ' ' + (b.time || '');
+    var c = ka < kb ? -1 : (ka > kb ? 1 : 0);
+    return newestFirst ? -c : c;
+  });
+  return out;
+}
+function weightStats(from, to) {
+  var ws = weightsSorted(from, to, false), sum = 0, i;
+  for (i = 0; i < ws.length; i++) { sum += ws[i].lb; }
+  return { n: ws.length, avg: ws.length ? Math.round(sum / ws.length * 10) / 10 : null };
+}
 
 /* ---------- messages / modal ---------- */
 function setErr(msg) {
@@ -421,6 +445,8 @@ function viewSummary() {
   h += '<div class="card tile t1"><div class="dh">Blood pressure average</div><div class="avg">' + dash(s.sys) + ' / ' + dash(s.dia) + '</div></div>';
   h += '<div class="card tile t2"><div class="dh">Pulse average</div><div class="avg">' + dash(s.pulse) + '</div></div>';
   h += '<div class="card tile t3"><div class="dh">Sleep average</div><div class="avg">' + (s.sleep === null ? '—' : hm(s.sleep)) + '</div><div class="avgl">from ' + s.sleepN + ' night' + (s.sleepN === 1 ? '' : 's') + '</div></div>';
+  var ws = weightStats(from, to);
+  h += '<div class="card tile t5"><div class="dh">Weight average</div><div class="avg">' + (ws.avg === null ? '—' : lbText(ws.avg) + ' lb') + '</div><div class="avgl">from ' + ws.n + ' weigh-in' + (ws.n === 1 ? '' : 's') + '</div></div>';
   h += '<div class="card tile t4"><div class="dh">Readings</div><div class="avg">' + s.n + '</div></div>';
   return h;
 }
@@ -433,7 +459,8 @@ var ICON = {
   more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
   meds: '<rect x="3" y="9" width="18" height="7" rx="3.5" transform="rotate(-35 12 12.5)"/><path d="M9 9.5l5.5 5" transform="rotate(0)"/>',
   report: '<path d="M7 4h10v5H7zM7 14h10v6H7zM4 9h16v6H4z"/>',
-  backup: '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/>'
+  backup: '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/>',
+  weight: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 9.5a4.5 4.5 0 0 1 7 0M12 13l2-2.5"/>'
 };
 function icon(n) {
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>';
@@ -441,9 +468,55 @@ function icon(n) {
 
 function viewMore() {
   return '<h1>More</h1>' +
+    '<button class="menu" data-act="go-weight">' + icon('weight') + '<span>Weight<br><span style="font-size:19px">Log and review your weight</span></span></button>' +
     '<button class="menu" data-act="go-meds">' + icon('meds') + '<span>Meds<br><span style="font-size:19px">Add, edit or remove</span></span></button>' +
     '<button class="menu" data-act="go-report">' + icon('report') + '<span>Doctor report<br><span style="font-size:19px">Print or save as PDF</span></span></button>' +
     '<button class="menu" data-act="go-backup">' + icon('backup') + '<span>Backup<br><span style="font-size:19px">Export or import your data</span></span></button>';
+}
+
+function viewWeight() {
+  var w = editWeightId ? findWeight(editWeightId) : null, i, list, x;
+  if (editWeightId && !w) { editWeightId = null; }
+  var d = w ? w.date : todayStr(), t = w ? w.time : nowTime();
+  var h = '<h1>' + (w ? 'Edit weight' : 'Weight') + '</h1><div class="err" id="err"></div>';
+  h += '<div class="fld f2"><label for="w-lb">Weight (pounds)</label><input class="big" id="w-lb" type="text" inputmode="decimal" maxlength="6" autocomplete="off" value="' + (w ? w.lb : '') + '"></div>';
+  h += '<label for="w-notes">Notes (optional)</label><textarea id="w-notes">' + esc(w ? w.notes : '') + '</textarea>';
+  h += '<button class="go" data-act="saveWeight">' + (w ? 'Save changes' : 'Save weight') + '</button>';
+  if (w) {
+    h += '<button class="sec" data-act="cancelWeight">Cancel</button>';
+    h += '<button class="danger" data-act="deleteWeight">Delete this weight</button>';
+  }
+  h += '<div class="card"><div class="dh">Date and time</div>';
+  h += '<label for="w-date">Date</label><input id="w-date" type="date" value="' + esc(d) + '">';
+  h += '<label for="w-time">Time</label><input id="w-time" type="time" value="' + esc(t) + '"></div>';
+  if (!w) {
+    list = weightsSorted('', '9999-12-31', true);
+    h += '<h2>Your weights</h2>';
+    if (!list.length) { h += '<div class="hint">No weights yet.</div>'; }
+    else { h += '<div class="hint">Tap one to edit or delete it.</div>'; }
+    for (i = 0; i < list.length; i++) {
+      x = list[i];
+      h += '<button class="row" data-act="editWeight" data-id="' + esc(x.id) + '">' + esc(longDate(x.date)) + (x.time ? ' &nbsp; ' + esc(x.time) : '') + '<br>' + lbText(x.lb) + ' lb' + (x.notes ? '<br>' + esc(x.notes) : '') + '</button>';
+    }
+  }
+  return h;
+}
+
+function doSaveWeight() {
+  var v = $('w-lb').value.replace(/\s/g, '').replace(',', '.');
+  if (!/^\d{2,3}(\.\d)?$/.test(v)) { setErr('Enter your weight in pounds, like 215.4'); return; }
+  var lb = parseFloat(v);
+  if (lb < 50 || lb > 999) { setErr('That weight looks wrong. Enter it in pounds, like 215.4'); return; }
+  var date = $('w-date').value, time = $('w-time').value, notes = $('w-notes').value;
+  if (!date) { setErr('Pick a date.'); return; }
+  var w = editWeightId ? findWeight(editWeightId) : null;
+  if (w) {
+    w.date = date; w.time = time; w.lb = lb; w.notes = notes;
+    if (save()) { editWeightId = null; go('weight', 'Changes saved.'); }
+  } else {
+    state.weights.push({ id: newId('w'), date: date, time: time, lb: lb, notes: notes });
+    if (save()) { go('weight', 'Saved ' + lb.toFixed(1) + ' lb.'); }
+  }
 }
 
 function viewMeds() {
@@ -517,15 +590,22 @@ function viewReport() {
   for (i = 0; i < opts.length; i++) { h += '<option value="' + opts[i][0] + '"' + (reportRange === opts[i][0] ? ' selected' : '') + '>' + opts[i][1] + '</option>'; }
   h += '</select><label for="rp-name">Name on the report (optional)</label><input id="rp-name" type="text" value="' + esc(state.profile.name) + '">';
   h += '<button data-act="print">Print / Save as PDF</button></div>';
-  h += '<div class="rh">Blood pressure, pulse, sleep and medication log' + (state.profile.name ? ' — ' + esc(state.profile.name) : '') + '</div>';
+  h += '<div class="rh">Blood pressure, pulse, weight, sleep and medication log' + (state.profile.name ? ' — ' + esc(state.profile.name) : '') + '</div>';
   h += '<div>Period: ' + (from ? esc(shortDate(from)) : 'all entries') + ' to ' + esc(shortDate(to)) + ' &nbsp; Printed: ' + esc(shortDate(to)) + '</div>';
-  h += '<h2>Averages</h2><table><tr><th>Readings</th><th>Top / bottom</th><th>Pulse</th><th>Sleep (nights)</th></tr>';
-  h += '<tr><td>' + s.n + '</td><td>' + dash(s.sys) + ' / ' + dash(s.dia) + '</td><td>' + dash(s.pulse) + '</td><td>' + (s.sleep === null ? '—' : hm(s.sleep)) + ' (' + s.sleepN + ')</td></tr></table>';
+  var wst = weightStats(from, to), wlist = weightsSorted(from, to, false);
+  h += '<h2>Averages</h2><table><tr><th>Readings</th><th>Top / bottom</th><th>Pulse</th><th>Weight (weigh-ins)</th><th>Sleep (nights)</th></tr>';
+  h += '<tr><td>' + s.n + '</td><td>' + dash(s.sys) + ' / ' + dash(s.dia) + '</td><td>' + dash(s.pulse) + '</td><td>' + (wst.avg === null ? '—' : lbText(wst.avg) + ' lb (' + wst.n + ')') + '</td><td>' + (s.sleep === null ? '—' : hm(s.sleep)) + ' (' + s.sleepN + ')</td></tr></table>';
   h += '<h2>Readings</h2><div class="tw"><table><tr><th>Date</th><th>Time</th><th>Top</th><th>Bottom</th><th>Pulse</th><th>Notes</th></tr>';
   if (!rs.length) { h += '<tr><td colspan="6">No readings in this period.</td></tr>'; }
   for (i = 0; i < rs.length; i++) {
     r = rs[i];
     h += '<tr><td>' + esc(shortDate(r.date)) + '</td><td>' + esc(timeText(r)) + '</td><td>' + r.sys + '</td><td>' + r.dia + '</td><td>' + r.pulse + '</td><td>' + esc(r.notes) + '</td></tr>';
+  }
+  h += '</table></div>';
+  h += '<h2>Weight</h2><div class="tw"><table><tr><th>Date</th><th>Time</th><th>Weight (lb)</th><th>Notes</th></tr>';
+  if (!wlist.length) { h += '<tr><td colspan="4">No weights in this period.</td></tr>'; }
+  for (i = 0; i < wlist.length; i++) {
+    h += '<tr><td>' + esc(shortDate(wlist[i].date)) + '</td><td>' + esc(wlist[i].time || '') + '</td><td>' + lbText(wlist[i].lb) + '</td><td>' + esc(wlist[i].notes) + '</td></tr>';
   }
   h += '</table></div>';
   h += '<h2>Sleep and medications by day</h2><div class="tw"><table><tr><th>Date</th><th>Sleep</th><th>Events/hr</th><th>Missed meds</th><th>Notes</th></tr>';
@@ -560,9 +640,10 @@ function render() {
   else if (view === 'medEdit') { h = viewMedEdit(); }
   else if (view === 'backup') { h = viewBackup(); }
   else if (view === 'report') { h = viewReport(); }
+  else if (view === 'weight') { h = viewWeight(); }
   else { h = viewMore(); }
   $('app').innerHTML = (flashMsg ? '<div class="msg">' + esc(flashMsg) + '</div>' : '') + h;
-  var navView = (view === 'meds' || view === 'medEdit' || view === 'backup' || view === 'report') ? 'more' : view;
+  var navView = (view === 'meds' || view === 'medEdit' || view === 'backup' || view === 'report' || view === 'weight') ? 'more' : view;
   for (i = 0; i < items.length; i++) {
     on = items[i][0] === navView ? ' class="on"' : '';
     nav += '<button' + on + ' data-act="nav" data-v="' + items[i][0] + '">' + icon(items[i][0]) + items[i][1] + '</button>';
@@ -635,6 +716,11 @@ function buildCsv() {
   rs.sort(function (a, b) { var ka = a.date + ' ' + (a.time || ''), kb = b.date + ' ' + (b.time || ''); return ka < kb ? -1 : (ka > kb ? 1 : 0); });
   for (i = 0; i < rs.length; i++) { lines.push(csvLine([rs[i].date, rs[i].time, rs[i].period, rs[i].sys, rs[i].dia, rs[i].pulse, rs[i].notes])); }
   lines.push('');
+  lines.push(csvLine(['WEIGHT']));
+  lines.push(csvLine(['Date', 'Time', 'Weight (lb)', 'Notes']));
+  var wl = weightsSorted('', '9999-12-31', false);
+  for (i = 0; i < wl.length; i++) { lines.push(csvLine([wl[i].date, wl[i].time, wl[i].lb.toFixed(1), wl[i].notes])); }
+  lines.push('');
   lines.push(csvLine(['DAILY']));
   lines.push(csvLine(['Date', 'Sleep (h:mm)', 'Sleep events per hour', 'Missed meds', 'Notes']));
   for (i = 0; i < dates.length; i++) {
@@ -668,14 +754,15 @@ function handleImportFile(file) {
     try { obj = JSON.parse(rd.result); } catch (e) { go('backup'); setErr('That file is not valid JSON. Nothing was changed.'); return; }
     if (!validState(obj)) { go('backup'); setErr('That file is not a Vitals Log backup. Nothing was changed.'); return; }
     if (!obj.profile) { obj.profile = { name: '' }; }
-    var nr = obj.readings.length, nd = countKeys(obj.days);
-    if (nr === 0 && nd === 0 && (state.readings.length > 0 || countKeys(state.days) > 0)) {
+    if (!(obj.weights instanceof Array)) { obj.weights = []; }
+    var nr = obj.readings.length, nd = countKeys(obj.days), nw = obj.weights.length;
+    if (nr === 0 && nd === 0 && nw === 0 && (state.readings.length > 0 || countKeys(state.days) > 0 || state.weights.length > 0)) {
       go('backup'); setErr('That backup is empty, so it was NOT imported. Your data is unchanged.'); return;
     }
-    askConfirm('Replace everything on this phone with the file? File has ' + nr + ' readings and ' + nd + ' daily entries. This phone has ' + state.readings.length + ' readings and ' + countKeys(state.days) + ' daily entries. A copy of the current data is kept first.', 'Yes, import', function () {
+    askConfirm('Replace everything on this phone with the file? File has ' + nr + ' readings, ' + nw + ' weights and ' + nd + ' daily entries. This phone has ' + state.readings.length + ' readings, ' + state.weights.length + ' weights and ' + countKeys(state.days) + ' daily entries. A copy of the current data is kept first.', 'Yes, import', function () {
       try { localStorage.setItem(PREV, JSON.stringify(state)); } catch (e2) { go('backup'); setErr('Could not keep a copy of the current data, so nothing was imported.'); return; }
       state = obj;
-      if (save()) { go('backup', 'Imported ' + nr + ' readings and ' + nd + ' daily entries.'); }
+      if (save()) { go('backup', 'Imported ' + nr + ' readings, ' + nw + ' weights and ' + nd + ' daily entries.'); }
     });
   };
   rd.onerror = function () { go('backup'); setErr('Could not read that file. Nothing was changed.'); };
@@ -703,8 +790,19 @@ document.addEventListener('click', function (ev) {
   }
   if (!state) { return; }
   if (act === 'nav') {
-    editReadingId = null; editMedId = null; todayDate = null;
+    editReadingId = null; editMedId = null; editWeightId = null; todayDate = null;
     go(el.getAttribute('data-v'));
+  }
+  else if (act === 'go-weight') { editWeightId = null; go('weight'); }
+  else if (act === 'saveWeight') { doSaveWeight(); }
+  else if (act === 'cancelWeight') { editWeightId = null; go('weight'); }
+  else if (act === 'editWeight') { editWeightId = el.getAttribute('data-id'); go('weight'); }
+  else if (act === 'deleteWeight') {
+    askConfirm('Delete this weight? This cannot be undone.', 'Yes, delete', function () {
+      var i;
+      for (i = 0; i < state.weights.length; i++) { if (state.weights[i].id === editWeightId) { state.weights.splice(i, 1); break; } }
+      if (save()) { editWeightId = null; go('weight', 'Weight deleted.'); }
+    });
   }
   else if (act === 'go-meds') { go('meds'); }
   else if (act === 'go-report') { go('report'); }
