@@ -31,6 +31,7 @@ button.sec { background: #fff; color: #0b2a6f; }
 button.danger { background: #8a0000; border-color: #5c0000; color: #fff; }
 button.row { background: #fff; color: #000; text-align: left; font-size: 22px; min-height: 58px; margin: 8px 0; border: 2px solid #0b2a6f; border-left: 12px solid #0b2a6f; box-shadow: none; }
 button.row.day { border-left-color: #00695c; background: #f1faf8; }
+button.row.wt { border-left-color: #8a3b00; background: #fff7f0; }
 button.menu { background: #fff; color: #0b2a6f; text-align: left; display: flex; align-items: center; min-height: 84px; }
 button.menu svg { width: 40px; height: 40px; margin-right: 14px; flex: none; }
 .card { background: #fff; border: 3px solid #0b2a6f; border-radius: 14px; padding: 0 12px 8px; margin: 16px 0; overflow: hidden; box-shadow: 0 3px 0 rgba(0,0,0,0.2); }
@@ -38,10 +39,12 @@ button.menu svg { width: 40px; height: 40px; margin-right: 14px; flex: none; }
 .fld { background: #fff; border: 3px solid #0b2a6f; border-left: 14px solid #0b2a6f; border-radius: 14px; padding: 2px 12px 12px; margin: 14px 0; }
 .fld.f2 { border-color: #00695c; border-left-color: #00695c; }
 .fld.f3 { border-color: #6a1b9a; border-left-color: #6a1b9a; }
+.fld.f4 { border-color: #8a3b00; border-left-color: #8a3b00; }
 .fld label { margin-top: 10px; }
 .fld.f1 label { color: #0b2a6f; }
 .fld.f2 label { color: #00695c; }
 .fld.f3 label { color: #6a1b9a; }
+.fld.f4 label { color: #8a3b00; }
 .fld input { border-color: #000; }
 .msg { background: #d7f5d7; border: 3px solid #005a00; color: #000; padding: 12px; border-radius: 8px; margin: 10px 0; font-size: 24px; }
 .err { display: none; background: #ffd9d9; border: 3px solid #8a0000; color: #000; padding: 12px; border-radius: 8px; margin: 10px 0; font-size: 24px; }
@@ -379,6 +382,9 @@ function viewLog() {
     h += '<div class="warn">First time here? To load your saved data and medication list: More, then Backup, then Import.</div>';
   }
   h += '<div class="err" id="err"></div>';
+  if (!r) {
+    h += '<div class="fld f4"><label for="r-lb">Weight in pounds (optional)</label><input class="big" id="r-lb" type="text" inputmode="decimal" maxlength="6" autocomplete="off" value=""></div>';
+  }
   h += '<div class="fld f1"><label for="r-sys">Top number (systolic)</label><input class="big" id="r-sys" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" value="' + (r ? r.sys : '') + '"></div>';
   h += '<div class="fld f2"><label for="r-dia">Bottom number (diastolic)</label><input class="big" id="r-dia" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" value="' + (r ? r.dia : '') + '"></div>';
   h += '<div class="fld f3"><label for="r-pul">Pulse (beats per minute)</label><input class="big" id="r-pul" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" value="' + (r ? r.pulse : '') + '"></div>';
@@ -419,15 +425,28 @@ function viewToday() {
   return h;
 }
 
+function historyDates() {
+  var set = {}, out = [], i, k, a = allDates();
+  for (i = 0; i < a.length; i++) { set[a[i]] = 1; }
+  for (i = 0; i < state.weights.length; i++) { set[state.weights[i].date] = 1; }
+  for (k in set) { if (set.hasOwnProperty(k)) { out.push(k); } }
+  out.sort();
+  return out;
+}
+
 function viewHistory() {
-  var dates = allDates().reverse(), h = '<h1>History</h1>', i, j, d, rs, day, line;
+  var dates = historyDates().reverse(), h = '<h1>History</h1>', i, j, d, rs, day, line, wd;
   if (!dates.length) { return h + '<div class="hint">No entries yet.</div>'; }
   h += '<div class="hint">Tap a line to edit or delete it.</div>';
   for (i = 0; i < dates.length; i++) {
     d = dates[i];
     rs = readingsOn(d);
     day = state.days[d];
+    wd = weightsSorted(d, d, false);
     h += '<div class="card"><div class="dh">' + esc(longDate(d)) + '</div>';
+    for (j = 0; j < wd.length; j++) {
+      h += '<button class="row wt" data-act="editWeight" data-id="' + esc(wd[j].id) + '">' + (wd[j].time ? esc(wd[j].time) + ' &nbsp; ' : '') + 'Weight ' + lbText(wd[j].lb) + ' lb' + (wd[j].notes ? '<br>' + esc(wd[j].notes) : '') + '</button>';
+    }
     for (j = 0; j < rs.length; j++) {
       h += '<button class="row" data-act="editReading" data-id="' + esc(rs[j].id) + '">' + esc(timeText(rs[j])) + ' &nbsp; ' + rs[j].sys + '/' + rs[j].dia + ' &nbsp; pulse ' + rs[j].pulse + (rs[j].notes ? '<br>' + esc(rs[j].notes) : '') + '</button>';
     }
@@ -468,37 +487,24 @@ function icon(n) {
 
 function viewMore() {
   return '<h1>More</h1>' +
-    '<button class="menu" data-act="go-weight">' + icon('weight') + '<span>Weight<br><span style="font-size:19px">Log and review your weight</span></span></button>' +
     '<button class="menu" data-act="go-meds">' + icon('meds') + '<span>Meds<br><span style="font-size:19px">Add, edit or remove</span></span></button>' +
     '<button class="menu" data-act="go-report">' + icon('report') + '<span>Doctor report<br><span style="font-size:19px">Print or save as PDF</span></span></button>' +
     '<button class="menu" data-act="go-backup">' + icon('backup') + '<span>Backup<br><span style="font-size:19px">Export or import your data</span></span></button>';
 }
 
+/* Weights are logged from the Log screen; this screen is only for editing or deleting one (opened from History). */
 function viewWeight() {
-  var w = editWeightId ? findWeight(editWeightId) : null, i, list, x;
-  if (editWeightId && !w) { editWeightId = null; }
-  var d = w ? w.date : todayStr(), t = w ? w.time : nowTime();
-  var h = '<h1>' + (w ? 'Edit weight' : 'Weight') + '</h1><div class="err" id="err"></div>';
-  h += '<div class="fld f2"><label for="w-lb">Weight (pounds)</label><input class="big" id="w-lb" type="text" inputmode="decimal" maxlength="6" autocomplete="off" value="' + (w ? w.lb : '') + '"></div>';
-  h += '<label for="w-notes">Notes (optional)</label><textarea id="w-notes">' + esc(w ? w.notes : '') + '</textarea>';
-  h += '<button class="go" data-act="saveWeight">' + (w ? 'Save changes' : 'Save weight') + '</button>';
-  if (w) {
-    h += '<button class="sec" data-act="cancelWeight">Cancel</button>';
-    h += '<button class="danger" data-act="deleteWeight">Delete this weight</button>';
-  }
+  var w = editWeightId ? findWeight(editWeightId) : null;
+  if (!w) { editWeightId = null; view = 'log'; return viewLog(); }
+  var h = '<h1>Edit weight</h1><div class="err" id="err"></div>';
+  h += '<div class="fld f4"><label for="w-lb">Weight (pounds)</label><input class="big" id="w-lb" type="text" inputmode="decimal" maxlength="6" autocomplete="off" value="' + w.lb + '"></div>';
+  h += '<label for="w-notes">Notes (optional)</label><textarea id="w-notes">' + esc(w.notes) + '</textarea>';
+  h += '<button class="go" data-act="saveWeight">Save changes</button>';
+  h += '<button class="sec" data-act="cancelWeight">Cancel</button>';
+  h += '<button class="danger" data-act="deleteWeight">Delete this weight</button>';
   h += '<div class="card"><div class="dh">Date and time</div>';
-  h += '<label for="w-date">Date</label><input id="w-date" type="date" value="' + esc(d) + '">';
-  h += '<label for="w-time">Time</label><input id="w-time" type="time" value="' + esc(t) + '"></div>';
-  if (!w) {
-    list = weightsSorted('', '9999-12-31', true);
-    h += '<h2>Your weights</h2>';
-    if (!list.length) { h += '<div class="hint">No weights yet.</div>'; }
-    else { h += '<div class="hint">Tap one to edit or delete it.</div>'; }
-    for (i = 0; i < list.length; i++) {
-      x = list[i];
-      h += '<button class="row" data-act="editWeight" data-id="' + esc(x.id) + '">' + esc(longDate(x.date)) + (x.time ? ' &nbsp; ' + esc(x.time) : '') + '<br>' + lbText(x.lb) + ' lb' + (x.notes ? '<br>' + esc(x.notes) : '') + '</button>';
-    }
-  }
+  h += '<label for="w-date">Date</label><input id="w-date" type="date" value="' + esc(w.date) + '">';
+  h += '<label for="w-time">Time</label><input id="w-time" type="time" value="' + esc(w.time) + '"></div>';
   return h;
 }
 
@@ -510,13 +516,9 @@ function doSaveWeight() {
   var date = $('w-date').value, time = $('w-time').value, notes = $('w-notes').value;
   if (!date) { setErr('Pick a date.'); return; }
   var w = editWeightId ? findWeight(editWeightId) : null;
-  if (w) {
-    w.date = date; w.time = time; w.lb = lb; w.notes = notes;
-    if (save()) { editWeightId = null; go('weight', 'Changes saved.'); }
-  } else {
-    state.weights.push({ id: newId('w'), date: date, time: time, lb: lb, notes: notes });
-    if (save()) { go('weight', 'Saved ' + lb.toFixed(1) + ' lb.'); }
-  }
+  if (!w) { setErr('That weight could not be found.'); return; }
+  w.date = date; w.time = time; w.lb = lb; w.notes = notes;
+  if (save()) { editWeightId = null; go('history', 'Changes saved.'); }
 }
 
 function viewMeds() {
@@ -643,7 +645,7 @@ function render() {
   else if (view === 'weight') { h = viewWeight(); }
   else { h = viewMore(); }
   $('app').innerHTML = (flashMsg ? '<div class="msg">' + esc(flashMsg) + '</div>' : '') + h;
-  var navView = (view === 'meds' || view === 'medEdit' || view === 'backup' || view === 'report' || view === 'weight') ? 'more' : view;
+  var navView = (view === 'meds' || view === 'medEdit' || view === 'backup' || view === 'report') ? 'more' : (view === 'weight' ? 'history' : view);
   for (i = 0; i < items.length; i++) {
     on = items[i][0] === navView ? ' class="on"' : '';
     nav += '<button' + on + ' data-act="nav" data-v="' + items[i][0] + '">' + icon(items[i][0]) + items[i][1] + '</button>';
@@ -655,18 +657,37 @@ function render() {
 
 /* ---------- actions ---------- */
 function doSaveReading() {
-  var sys = readInt($('r-sys').value), dia = readInt($('r-dia').value), pul = readInt($('r-pul').value);
-  var date = $('r-date').value, time = $('r-time').value, period = $('r-period').value, notes = $('r-notes').value;
-  if (sys === null || dia === null || pul === null) { setErr('Enter all three numbers (whole numbers, 1 to 999).'); return; }
-  if (!date) { setErr('Pick a date.'); return; }
   var r = editReadingId ? findReading(editReadingId) : null;
+  var sysS = $('r-sys').value.replace(/\s/g, ''), diaS = $('r-dia').value.replace(/\s/g, ''), pulS = $('r-pul').value.replace(/\s/g, '');
+  var anyBp = (sysS !== '' || diaS !== '' || pulS !== '');
+  var lbEl = $('r-lb'), lbS = lbEl ? lbEl.value.replace(/\s/g, '').replace(',', '.') : '';
+  var date = $('r-date').value, time = $('r-time').value, period = $('r-period').value, notes = $('r-notes').value;
+  var sys = null, dia = null, pul = null, lb = null, msg = [];
+  if (!r && !anyBp && lbS === '') { setErr('Enter your blood pressure, your weight, or both.'); return; }
+  if (r || anyBp) {
+    sys = readInt(sysS); dia = readInt(diaS); pul = readInt(pulS);
+    if (sys === null || dia === null || pul === null) { setErr('Enter all three blood pressure numbers (whole numbers, 1 to 999).'); return; }
+  }
+  if (lbS !== '') {
+    if (!/^\d{2,3}(\.\d)?$/.test(lbS)) { setErr('Enter your weight in pounds, like 215.4'); return; }
+    lb = parseFloat(lbS);
+    if (lb < 50 || lb > 999) { setErr('That weight looks wrong. Enter it in pounds, like 215.4'); return; }
+  }
+  if (!date) { setErr('Pick a date.'); return; }
   if (r) {
     r.date = date; r.time = time; r.period = period; r.sys = sys; r.dia = dia; r.pulse = pul; r.notes = notes;
     if (save()) { editReadingId = null; go('history', 'Changes saved.'); }
-  } else {
-    state.readings.push({ id: newId('r'), date: date, time: time, period: period, sys: sys, dia: dia, pulse: pul, notes: notes });
-    if (save()) { go('log', 'Saved ' + sys + '/' + dia + ', pulse ' + pul + '.'); }
+    return;
   }
+  if (anyBp) {
+    state.readings.push({ id: newId('r'), date: date, time: time, period: period, sys: sys, dia: dia, pulse: pul, notes: notes });
+    msg.push(sys + '/' + dia + ', pulse ' + pul);
+  }
+  if (lb !== null) {
+    state.weights.push({ id: newId('w'), date: date, time: time, lb: lb, notes: anyBp ? '' : notes });
+    msg.push(lb.toFixed(1) + ' lb');
+  }
+  if (save()) { go('log', 'Saved ' + msg.join(' and ') + '.'); }
 }
 
 function doSaveDay() {
@@ -793,15 +814,14 @@ document.addEventListener('click', function (ev) {
     editReadingId = null; editMedId = null; editWeightId = null; todayDate = null;
     go(el.getAttribute('data-v'));
   }
-  else if (act === 'go-weight') { editWeightId = null; go('weight'); }
   else if (act === 'saveWeight') { doSaveWeight(); }
-  else if (act === 'cancelWeight') { editWeightId = null; go('weight'); }
+  else if (act === 'cancelWeight') { editWeightId = null; go('history'); }
   else if (act === 'editWeight') { editWeightId = el.getAttribute('data-id'); go('weight'); }
   else if (act === 'deleteWeight') {
     askConfirm('Delete this weight? This cannot be undone.', 'Yes, delete', function () {
       var i;
       for (i = 0; i < state.weights.length; i++) { if (state.weights[i].id === editWeightId) { state.weights.splice(i, 1); break; } }
-      if (save()) { editWeightId = null; go('weight', 'Weight deleted.'); }
+      if (save()) { editWeightId = null; go('history', 'Weight deleted.'); }
     });
   }
   else if (act === 'go-meds') { go('meds'); }
