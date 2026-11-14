@@ -244,6 +244,14 @@ function missedText(date) {
    webhook address that is stored on this phone, never in this file and never in backups.
    Fire and forget: if the phone is offline nothing is sent and the reminders simply keep going. */
 var HAKEY = 'vitalsLog.haUrl';
+/* Backup file numbering: its own counter on this phone (not part of the data, so imports never reset it). */
+var BNKEY = 'vitalsLog.backupNo';
+function backupNo() { try { return parseInt(localStorage.getItem(BNKEY) || '0', 10) || 0; } catch (e) { return 0; } }
+function nextBackupNo() {
+  var n = backupNo() + 1;
+  try { localStorage.setItem(BNKEY, String(n)); } catch (e) { /* ignore: file is still named with the number */ }
+  return n;
+}
 function haGet() { try { return localStorage.getItem(HAKEY) || ''; } catch (e) { return ''; } }
 function haSet(v) {
   try { if (v) { localStorage.setItem(HAKEY, v); } else { localStorage.removeItem(HAKEY); } return true; } catch (e) { return false; }
@@ -561,6 +569,7 @@ function viewBackup() {
   var h = '<h1>Backup</h1><div class="err" id="err"></div>';
   h += '<div class="hint">' + state.readings.length + ' readings and ' + countKeys(state.days) + ' daily entries are saved on this phone.</div>';
   h += '<button data-act="exportJson">Export JSON (full backup)</button>';
+  h += '<div class="hint">' + (backupNo() ? 'Last backup number: ' + backupNo() + '. The next one will be #' + (backupNo() + 1) + '.' : 'No backup made on this phone yet. The first one will be #1.') + '</div>';
   h += '<button data-act="exportCsv">Export CSV (for the doctor)</button>';
   h += '<button class="sec" data-act="pickFile">Import from a JSON file</button>';
   h += '<div class="hint">Import replaces everything on this device with the file. A copy of the current data is kept first.</div>';
@@ -857,7 +866,11 @@ document.addEventListener('click', function (ev) {
       if (save()) { editMedId = null; go('meds', 'Medication removed.'); }
     });
   }
-  else if (act === 'exportJson') { download('vitals-log-' + todayStr() + '.json', JSON.stringify(state, null, 2), 'application/json'); }
+  else if (act === 'exportJson') {
+    var bn = nextBackupNo();
+    download('vitals-log-backup-' + (bn < 100 ? (bn < 10 ? '00' : '0') : '') + bn + '_' + todayStr() + '.json', JSON.stringify(state, null, 2), 'application/json');
+    go('backup', 'Backup #' + bn + ' saved. Keep the newest two in OneDrive.');
+  }
   else if (act === 'exportCsv') { download('vitals-log-' + todayStr() + '.csv', buildCsv(), 'text/csv'); }
   else if (act === 'pickFile') { $('import-file').value = ''; $('import-file').click(); }
   else if (act === 'haSave') {
