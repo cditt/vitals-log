@@ -196,6 +196,7 @@ function save() {
 function schedText(m) {
   if (m.freq === 'weekly') { return 'Weekly, ' + DOWFULL[m.weekday]; }
   if (m.freq === 'twice') { return 'Twice a day, AM and night'; }
+  if (m.freq === 'night') { return 'Daily, at night'; }
   return 'Daily';
 }
 function medDue(m, date) {
@@ -209,7 +210,7 @@ function dueItems(date) {
   for (i = 0; i < state.meds.length; i++) {
     m = state.meds[i];
     if (!medDue(m, date)) { continue; }
-    slots = m.freq === 'twice' ? ['AM', 'Night'] : [''];
+    slots = m.freq === 'twice' ? ['AM', 'Night'] : (m.freq === 'night' ? ['Night'] : ['']);
     for (j = 0; j < slots.length; j++) {
       out.push({
         key: m.id + '|' + slots[j],
@@ -256,7 +257,7 @@ function haStatus() {
     if (r.date === d) { if (r.period === 'PM') { bpPm = true; } else { bpAm = true; } }
   }
   for (i = 0; i < items.length; i++) {
-    k = items[i].freq === 'weekly' ? 'weekly' : ((items[i].freq === 'twice' && items[i].slot === 'Night') ? 'night' : 'am');
+    k = items[i].freq === 'weekly' ? 'weekly' : (items[i].slot === 'Night' ? 'night' : 'am');
     c[k][0]++;
     if (taken[items[i].key]) { c[k][1]++; }
   }
@@ -542,6 +543,7 @@ function viewMedEdit() {
   h += '<label for="md-freq">Schedule</label><select id="md-freq">';
   h += '<option value="daily"' + (f === 'daily' ? ' selected' : '') + '>Daily</option>';
   h += '<option value="twice"' + (f === 'twice' ? ' selected' : '') + '>Twice a day, AM and night</option>';
+  h += '<option value="night"' + (f === 'night' ? ' selected' : '') + '>Daily, at night only</option>';
   h += '<option value="weekly"' + (f === 'weekly' ? ' selected' : '') + '>Weekly</option></select>';
   h += '<div id="md-wdwrap" style="' + (f === 'weekly' ? '' : 'display:none') + '"><label for="md-wd">Day of the week</label><select id="md-wd">';
   for (i = 0; i < 7; i++) { h += '<option value="' + i + '"' + (w === i ? ' selected' : '') + '>' + DOWFULL[i] + '</option>'; }
